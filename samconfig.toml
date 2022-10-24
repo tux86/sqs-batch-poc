@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "sqs-batch-poc"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-wxd1nnt1c550"
+s3_prefix = "sqs-batch-poc"
+region = "eu-west-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []

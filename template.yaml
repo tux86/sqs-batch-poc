@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sqs-batch-poc
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+
+Parameters:
+  QueueNamePrefix:
+    Type: String
+    Default: MainQueue
+
+Resources:
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true
+      QueueName: !Sub '${QueueNamePrefix}-DeadLetter.fifo'
+  MainSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${QueueNamePrefix}.fifo'
+      ContentBasedDeduplication: true
+      FifoQueue: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 4
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ConsumerFunction
+      CodeUri: src/
+      Handler: app.consumer
+      Runtime: nodejs16.x
+      Environment:
+        Variables:
+          QUEUE_URL: !GetAtt MainSQS.Arn
+      Events:
+        MySQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MainSQS.Arn
+            BatchSize: 10
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints:
+          - app.ts
+  ProducerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.producer
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Events:
+        QueueProducer:
+          Type: Api
+          Properties:
+            Path: /send
+            Method: get
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints: 
+        - app.ts
