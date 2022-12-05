@@ -6,7 +6,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 5
 
 Parameters:
   QueueNamePrefix:
@@ -27,7 +27,7 @@ Resources:
       FifoQueue: true
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
-        maxReceiveCount: 4
+        maxReceiveCount: 3
   ConsumerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -35,9 +35,8 @@ Resources:
       CodeUri: src/
       Handler: app.consumer
       Runtime: nodejs16.x
-      Environment:
-        Variables:
-          QUEUE_URL: !GetAtt MainSQS.Arn
+      Policies:
+        - AmazonSQSFullAccess
       Events:
         MySQSEvent:
           Type: SQS
@@ -61,6 +60,11 @@ Resources:
       Runtime: nodejs16.x
       Architectures:
         - x86_64
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref MainSQS
+      Policies:
+        - AmazonSQSFullAccess
       Events:
         QueueProducer:
           Type: Api

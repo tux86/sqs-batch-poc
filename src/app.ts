@@ -19,6 +19,10 @@ export const consumer = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     //console.log('event : ', JSON.stringify(event));
     console.log('records count : ', JSON.stringify(event.Records.length));
     for (const record of event.Records) {
+        // force to replay all messages
+        if (record.body.includes('exception')) {
+            throw new Error('Failed processing messageId=' + record.messageId);
+        }
         try {
             console.log('messageId : ', record.messageId);
             console.log('message body : ', record.body);
@@ -28,6 +32,7 @@ export const consumer = async (event: SQSEvent): Promise<SQSBatchResponse> => {
             }
         } catch (error) {
             console.error('Error ==>', JSON.stringify(error));
+            // only failed messages will be replayed
             batchItemFailures.push({
                 itemIdentifier: record.messageId,
             });
@@ -51,11 +56,11 @@ export const producer = async (event: APIGatewayProxyEvent): Promise<APIGatewayP
                 },
                 {
                     Id: randomUUID(),
-                    MessageBody: 'message 140 error', //+ Math.random(),
+                    MessageBody: 'message 140 error', //+ Math.random(),  // by adding "error" will simulate consume error
                     MessageGroupId: 'group_1',
                 },
             ],
-            QueueUrl: 'https://sqs.eu-west-1.amazonaws.com/685224347998/MainQueue.fifo',
+            QueueUrl: process.env.QUEUE_URL,
         };
 
         const sendMessageBatchCommand: SendMessageBatchCommand = new SendMessageBatchCommand(input);
